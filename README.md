@@ -78,7 +78,7 @@ Install the following before running the project:
 Clone the repository:
 
 ```bash
-git clone <REPOSITORY_URL>
+git clone https://github.com/MehtaabSingh25/ASOC.git
 cd ASOC
 ```
 
