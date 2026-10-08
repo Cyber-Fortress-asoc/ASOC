@@ -32,12 +32,12 @@ The goal of this project is to build a centralized platform that can:
 
 ### Database
 
-- MongoDB
-- Mongoose
+- PostgreSQL
+- pgvector
 
 ### Real-Time Communication
 
-- Socket.IO
+- WebSockets
 
 ### Future Infrastructure
 
