@@ -1,69 +1,489 @@
-import Image from "next/image";
+// // "use client";
+// // import { useEffect, useState } from "react";
+// // import { Area, AreaChart, Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+// // import { Alert, Stats, getStats, subscribeAlerts } from "@/lib/api";
+// // import { Panel, SeverityTag, StatCard } from "@/components/ui";
 
-export default function Home() {
+// // export default function Dashboard() {
+// //   const [stats, setStats] = useState<Stats | null>(null);
+// //   const [feed, setFeed] = useState<Alert[]>([]);
+
+// //   useEffect(() => { getStats().then(setStats); }, []);
+// //   useEffect(() => {
+// //     return subscribeAlerts((a) => {
+// //       setFeed((f) => [a, ...f].slice(0, 10));
+// //       setStats((s) => (s ? { ...s, alerts_today: s.alerts_today + 1 } : s));
+// //     });
+// //   }, []);
+
+// //   if (!stats) return <p style={{ color: "var(--muted)" }}>Loading…</p>;
+
+// //   return (
+// //     <div className="space-y-6">
+// //       <div>
+// //         <h1 className="text-xl font-semibold">Overview</h1>
+// //         <p className="mono text-xs" style={{ color: "var(--muted)" }}>Last updated {new Date().toLocaleTimeString()}</p>
+// //       </div>
+
+// //       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+// //         <StatCard label="Alerts today" value={stats.alerts_today} />
+// //         <StatCard label="Open incidents" value={stats.open_incidents} accent="var(--medium)" />
+// //         <StatCard label="Critical incidents" value={stats.critical_incidents} accent="var(--critical)" />
+// //         <StatCard label="Avg response time" value={stats.mttr_min} unit="min" accent="var(--accent)" />
+// //       </div>
+
+// //       <div className="grid gap-4 lg:grid-cols-2">
+// //         <Panel title="Alerts over time">
+// //           <ResponsiveContainer width="100%" height={200}>
+// //             <AreaChart data={stats.timeline}>
+// //               <XAxis dataKey="hour" stroke="var(--muted)" fontSize={11} />
+// //               <YAxis stroke="var(--muted)" fontSize={11} />
+// //               <Tooltip contentStyle={{ background: "var(--panel-raised)", border: "1px solid var(--border)", fontSize: 12 }} />
+// //               <Area dataKey="alerts" stroke="var(--data)" fill="var(--data)" fillOpacity={0.15} strokeWidth={2} />
+// //             </AreaChart>
+// //           </ResponsiveContainer>
+// //         </Panel>
+// //         <Panel title="Attack types">
+// //           <ResponsiveContainer width="100%" height={200}>
+// //             <BarChart data={stats.types}>
+// //               <XAxis dataKey="type" stroke="var(--muted)" fontSize={11} />
+// //               <YAxis stroke="var(--muted)" fontSize={11} />
+// //               <Tooltip contentStyle={{ background: "var(--panel-raised)", border: "1px solid var(--border)", fontSize: 12 }} />
+// //               <Bar dataKey="count" fill="var(--accent)" />
+// //             </BarChart>
+// //           </ResponsiveContainer>
+// //         </Panel>
+// //       </div>
+
+// //       <Panel title="Live alert feed">
+// //         {feed.length === 0 && <p className="text-sm" style={{ color: "var(--muted)" }}>Waiting for alerts…</p>}
+// //         <ul className="divide-y" style={{ borderColor: "var(--border)" }}>
+// //           {feed.map((a) => (
+// //             <li key={a.id + a.timestamp} className="flex items-center gap-4 py-2.5 text-sm">
+// //               <SeverityTag s={a.severity} />
+// //               <span className="flex-1">{a.type}</span>
+// //               <span className="mono" style={{ color: "var(--muted)" }}>{a.source_ip}</span>
+// //               <span className="mono text-xs" style={{ color: "var(--muted)" }}>{new Date(a.timestamp).toLocaleTimeString()}</span>
+// //             </li>
+// //           ))}
+// //         </ul>
+// //       </Panel>
+// //     </div>
+// //   );
+// // }
+
+
+// "use client";
+// import { memo, useEffect, useRef, useState } from "react";
+// import Link from "next/link";
+// import { Area, AreaChart, Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+// import { Alert, Severity, Stats, getStats, subscribeAlerts } from "@/lib/api";
+// import { Panel, SeverityTag, StatCard } from "@/components/ui";
+
+// const FEED_MAX = 50;   // feed me max itni alerts
+// const FLUSH_MS = 1000; // alerts ko 1 sec ke batch me apply karo
+
+// // alert ka naam -> bar chart ki category
+// const TYPE_TO_BUCKET: Record<string, string> = {
+//   "SSH Brute Force": "Brute Force",
+//   "Port Scan": "Port Scan",
+//   "Suspicious PowerShell": "PowerShell",
+//   "Malware Signature": "Malware",
+// };
+
+// type Filter = "all" | Severity;
+// const FILTERS: Filter[] = ["all", "critical", "high", "medium", "low"];
+
+// function applyAlerts(s: Stats, batch: Alert[]): Stats {
+//   const types = s.types.map((t) => ({ ...t }));
+//   for (const a of batch) {
+//     const row = types.find((t) => t.type === TYPE_TO_BUCKET[a.type]);
+//     if (row) row.count += 1;
+//   }
+//   const last = s.timeline.length - 1;
+//   const timeline = s.timeline.map((p, i) => (i === last ? { ...p, alerts: p.alerts + batch.length } : p));
+//   return { ...s, alerts_today: s.alerts_today + batch.length, types, timeline };
+// }
+
+// const AlertRow = memo(function AlertRow({ a }: { a: Alert }) {
+//   return (
+//     <li>
+//       <Link
+//         href={`/incidents/${a.incident_id}`}
+//         className="flex items-center gap-4 rounded px-2 py-2.5 text-sm hover:bg-[var(--panel-raised)]"
+//       >
+//         <SeverityTag s={a.severity} />
+//         <span className="flex-1">{a.type}</span>
+//         <span className="mono" style={{ color: "var(--muted)" }}>{a.source_ip}</span>
+//         <span className="mono text-xs" style={{ color: "var(--muted)" }}>
+//           {new Date(a.timestamp).toLocaleTimeString()}
+//         </span>
+//       </Link>
+//     </li>
+//   );
+// });
+
+// export default function Dashboard() {
+//   const [stats, setStats] = useState<Stats | null>(null);
+//   const [error, setError] = useState<string | null>(null);
+//   const [feed, setFeed] = useState<Alert[]>([]);
+//   const [filter, setFilter] = useState<Filter>("all");
+//   const [paused, setPaused] = useState(false);
+//   const [queued, setQueued] = useState(0);
+//   const [updated, setUpdated] = useState("");
+
+//   const incoming = useRef<Alert[]>([]); // abhi aayi, apply hona baaki
+//   const held = useRef<Alert[]>([]);     // pause ke dauran roki gayi (newest first)
+//   const pausedRef = useRef(false);
+
+//   useEffect(() => {
+//     getStats()
+//       .then((s) => {
+//         setStats(s);
+//         setUpdated(new Date().toLocaleTimeString());
+//       })
+//       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load stats"));
+//   }, []);
+
+//   useEffect(() => {
+//     const unsubscribe = subscribeAlerts((a) => incoming.current.push(a));
+
+//     const timer = setInterval(() => {
+//       const batch = incoming.current;
+//       if (batch.length === 0) return;
+//       incoming.current = [];
+
+//       // KPIs aur charts hamesha update hote hain
+//       setStats((s) => (s ? applyAlerts(s, batch) : s));
+//       setUpdated(new Date().toLocaleTimeString());
+
+//       const newestFirst = batch.slice().reverse();
+//       if (pausedRef.current) {
+//         held.current = [...newestFirst, ...held.current];
+//         setQueued(held.current.length);
+//       } else {
+//         setFeed((f) => [...newestFirst, ...f].slice(0, FEED_MAX));
+//       }
+//     }, FLUSH_MS);
+
+//     return () => {
+//       unsubscribe();
+//       clearInterval(timer);
+//     };
+//   }, []);
+
+//   function togglePause() {
+//     const next = !pausedRef.current;
+//     pausedRef.current = next;
+//     setPaused(next);
+//     if (!next) {
+//       const h = held.current;
+//       held.current = [];
+//       setQueued(0);
+//       setFeed((f) => [...h, ...f].slice(0, FEED_MAX));
+//     }
+//   }
+
+//   if (error) return <p style={{ color: "var(--critical)" }}>Could not load dashboard: {error}</p>;
+//   if (!stats) return <p style={{ color: "var(--muted)" }}>Loading…</p>;
+
+//   const visible = filter === "all" ? feed : feed.filter((a) => a.severity === filter);
+//   const tooltipStyle = { background: "var(--panel-raised)", border: "1px solid var(--border)", fontSize: 12 };
+
+//   return (
+//     <div className="space-y-6">
+//       <div>
+//         <h1 className="text-xl font-semibold">Overview</h1>
+//         <p className="mono text-xs" style={{ color: "var(--muted)" }}>Last updated {updated}</p>
+//       </div>
+
+//       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+//         {/* <StatCard label="Alerts today" value={stats.alerts_today} />
+//         <StatCard label="Open incidents" value={stats.open_incidents} accent="var(--medium)" />
+//         <StatCard label="Critical incidents" value={stats.critical_incidents} accent="var(--critical)" />
+//         <StatCard label="Avg response time" value={stats.mttr_min} unit="min" accent="var(--accent)" /> */
+//         <StatCard label="Alerts today" value={stats.alerts_today} />
+// <StatCard label="Open incidents" value={stats.open_incidents} accent="var(--medium)" href="/incidents" />
+// <StatCard label="Critical incidents" value={stats.critical_incidents} accent="var(--critical)" href="/incidents" />
+// <StatCard label="Avg response time" value={stats.mttr_min} unit="min" accent="var(--accent)" />}
+//       </div>
+
+//       <div className="grid gap-4 lg:grid-cols-2">
+//         <Panel title="Alerts over time">
+//           <ResponsiveContainer width="100%" height={200}>
+//             <AreaChart data={stats.timeline}>
+//               <XAxis dataKey="hour" stroke="var(--muted)" fontSize={11} />
+//               <YAxis stroke="var(--muted)" fontSize={11} />
+//               <Tooltip contentStyle={tooltipStyle} />
+//               <Area dataKey="alerts" stroke="var(--data)" fill="var(--data)" fillOpacity={0.15} strokeWidth={2} isAnimationActive={false} />
+//             </AreaChart>
+//           </ResponsiveContainer>
+//         </Panel>
+//         <Panel title="Attack types">
+//           <ResponsiveContainer width="100%" height={200}>
+//             <BarChart data={stats.types}>
+//               <XAxis dataKey="type" stroke="var(--muted)" fontSize={11} />
+//               <YAxis stroke="var(--muted)" fontSize={11} />
+//               <Tooltip contentStyle={tooltipStyle} />
+//               <Bar dataKey="count" fill="var(--accent)" isAnimationActive={false} />
+//             </BarChart>
+//           </ResponsiveContainer>
+//         </Panel>
+//       </div>
+
+//       <Panel title="Live alert feed">
+//         <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+//           {FILTERS.map((f) => (
+//             <button
+//               key={f}
+//               onClick={() => setFilter(f)}
+//               className="rounded border px-2.5 py-1 capitalize"
+//               style={{
+//                 borderColor: "var(--border)",
+//                 background: filter === f ? "var(--panel-raised)" : "transparent",
+//                 color: filter === f ? "var(--accent)" : "var(--muted)",
+//               }}
+//             >
+//               {f}
+//             </button>
+//           ))}
+//           <button
+//             onClick={togglePause}
+//             className="ml-auto rounded border px-2.5 py-1"
+//             style={{ borderColor: "var(--border)", color: "var(--text)" }}
+//           >
+//             {paused ? (queued > 0 ? `Resume (${queued} new)` : "Resume") : "Pause"}
+//           </button>
+//         </div>
+
+//         {visible.length === 0 && (
+//           <p className="text-sm" style={{ color: "var(--muted)" }}>
+//             {feed.length === 0 ? "Waiting for alerts…" : "No alerts match this filter."}
+//           </p>
+//         )}
+//         <ul className="max-h-[420px] divide-y overflow-y-auto" style={{ borderColor: "var(--border)" }}>
+//           {visible.map((a) => (
+//             <AlertRow key={a.id + a.timestamp} a={a} />
+//           ))}
+//         </ul>
+//       </Panel>
+//     </div>
+//   );
+// }
+
+
+"use client";
+import { memo, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { Area, AreaChart, Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Alert, Severity, Stats, getStats, subscribeAlerts } from "@/lib/api";
+import { Notice, Panel, SeverityTag, Skeleton, StatCard } from "@/components/ui";
+
+const FEED_MAX = 50;   // feed me max itni alerts
+const FLUSH_MS = 1000; // alerts ko 1 sec ke batch me apply karo
+
+// alert ka naam -> bar chart ki category
+const TYPE_TO_BUCKET: Record<string, string> = {
+  "SSH Brute Force": "Brute Force",
+  "Port Scan": "Port Scan",
+  "Suspicious PowerShell": "PowerShell",
+  "Malware Signature": "Malware",
+};
+
+type Filter = "all" | Severity;
+const FILTERS: Filter[] = ["all", "critical", "high", "medium", "low"];
+
+function applyAlerts(s: Stats, batch: Alert[]): Stats {
+  const types = s.types.map((t) => ({ ...t }));
+  for (const a of batch) {
+    const row = types.find((t) => t.type === TYPE_TO_BUCKET[a.type]);
+    if (row) row.count += 1;
+  }
+  const last = s.timeline.length - 1;
+  const timeline = s.timeline.map((p, i) => (i === last ? { ...p, alerts: p.alerts + batch.length } : p));
+  return { ...s, alerts_today: s.alerts_today + batch.length, types, timeline };
+}
+
+const AlertRow = memo(function AlertRow({ a }: { a: Alert }) {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <li>
+      <Link
+        href={`/incidents/${a.incident_id}`}
+        className="flex items-center gap-4 rounded px-2 py-2.5 text-sm hover:bg-[var(--panel-raised)]"
+      >
+        <SeverityTag s={a.severity} />
+        <span className="flex-1">{a.type}</span>
+        <span className="mono" style={{ color: "var(--muted)" }}>{a.source_ip}</span>
+        <span className="mono text-xs" style={{ color: "var(--muted)" }}>
+          {new Date(a.timestamp).toLocaleTimeString()}
+        </span>
+      </Link>
+    </li>
+  );
+});
+
+export default function Dashboard() {
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [feed, setFeed] = useState<Alert[]>([]);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [paused, setPaused] = useState(false);
+  const [queued, setQueued] = useState(0);
+  const [updated, setUpdated] = useState("");
+
+  const incoming = useRef<Alert[]>([]); // abhi aayi, apply hona baaki
+  const held = useRef<Alert[]>([]);     // pause ke dauran roki gayi (newest first)
+  const pausedRef = useRef(false);
+
+  useEffect(() => {
+    getStats()
+      .then((s) => {
+        setStats(s);
+        setUpdated(new Date().toLocaleTimeString());
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load stats"));
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeAlerts((a) => incoming.current.push(a));
+
+    const timer = setInterval(() => {
+      const batch = incoming.current;
+      if (batch.length === 0) return;
+      incoming.current = [];
+
+      // KPIs aur charts hamesha update hote hain
+      setStats((s) => (s ? applyAlerts(s, batch) : s));
+      setUpdated(new Date().toLocaleTimeString());
+
+      const newestFirst = batch.slice().reverse();
+      if (pausedRef.current) {
+        held.current = [...newestFirst, ...held.current];
+        setQueued(held.current.length);
+      } else {
+        setFeed((f) => [...newestFirst, ...f].slice(0, FEED_MAX));
+      }
+    }, FLUSH_MS);
+
+    return () => {
+      unsubscribe();
+      clearInterval(timer);
+    };
+  }, []);
+
+  function togglePause() {
+    const next = !pausedRef.current;
+    pausedRef.current = next;
+    setPaused(next);
+    if (!next) {
+      const h = held.current;
+      held.current = [];
+      setQueued(0);
+      setFeed((f) => [...h, ...f].slice(0, FEED_MAX));
+    }
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-2">
+        <h1 className="text-xl font-semibold">Overview</h1>
+        <Notice kind="error">Could not load dashboard: {error}</Notice>
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-40" />
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((n) => <Skeleton key={n} className="h-28" />)}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Skeleton className="h-60" />
+          <Skeleton className="h-60" />
         </div>
-      </main>
+      </div>
+    );
+  }
+
+  const visible = filter === "all" ? feed : feed.filter((a) => a.severity === filter);
+  const tooltipStyle = { background: "var(--panel-raised)", border: "1px solid var(--border)", fontSize: 12 };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-xl font-semibold">Overview</h1>
+        <p className="mono text-xs" style={{ color: "var(--muted)" }}>Last updated {updated}</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label="Alerts today" value={stats.alerts_today} />
+        <StatCard label="Open incidents" value={stats.open_incidents} accent="var(--medium)" href="/incidents" />
+        <StatCard label="Critical incidents" value={stats.critical_incidents} accent="var(--critical)" href="/incidents" />
+        <StatCard label="Avg response time" value={stats.mttr_min} unit="min" accent="var(--accent)" />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Panel title="Alerts over time">
+          <ResponsiveContainer width="100%" height={200}>
+            <AreaChart data={stats.timeline}>
+              <XAxis dataKey="hour" stroke="var(--muted)" fontSize={11} />
+              <YAxis stroke="var(--muted)" fontSize={11} />
+              {/* <Tooltip contentStyle={tooltipStyle} /> */
+              <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: "var(--border)" }} />}
+              <Area dataKey="alerts" stroke="var(--data)" fill="var(--data)" fillOpacity={0.15} strokeWidth={2} isAnimationActive={false} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </Panel>
+        <Panel title="Attack types">
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={stats.types}>
+              <XAxis dataKey="type" stroke="var(--muted)" fontSize={11} />
+              <YAxis stroke="var(--muted)" fontSize={11} />
+              {/* <Tooltip contentStyle={tooltipStyle} /> */
+              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(255,255,255,0.05)" }} />}
+              <Bar dataKey="count" fill="var(--accent)" isAnimationActive={false} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Panel>
+      </div>
+
+      <Panel title="Live alert feed">
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+          {FILTERS.map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              aria-pressed={filter === f}
+              className="rounded border px-2.5 py-1 capitalize"
+              style={{
+                borderColor: "var(--border)",
+                background: filter === f ? "var(--panel-raised)" : "transparent",
+                color: filter === f ? "var(--accent)" : "var(--muted)",
+              }}
+            >
+              {f}
+            </button>
+          ))}
+          <button
+            onClick={togglePause}
+            className="ml-auto rounded border px-2.5 py-1"
+            style={{ borderColor: "var(--border)", color: "var(--text)" }}
+          >
+            {paused ? (queued > 0 ? `Resume (${queued} new)` : "Resume") : "Pause"}
+          </button>
+        </div>
+
+        {visible.length === 0 && (
+          <Notice>{feed.length === 0 ? "Waiting for alerts…" : "No alerts match this filter."}</Notice>
+        )}
+        <ul className="max-h-[420px] divide-y overflow-y-auto" style={{ borderColor: "var(--border)" }}>
+          {visible.map((a) => (
+            <AlertRow key={a.id + a.timestamp} a={a} />
+          ))}
+        </ul>
+      </Panel>
     </div>
   );
 }
