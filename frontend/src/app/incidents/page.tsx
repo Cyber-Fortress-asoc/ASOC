@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Incident, getIncidents } from "@/lib/api";
-import { Panel, RiskBar, SeverityTag, StatusPill } from "@/components/ui";
+import { Incident, getIncidents, outcomeOf } from "@/lib/api";
+import { ConfusionTag, Panel, RiskBar, SeverityTag, StatusPill } from "@/components/ui";
 
 export default function Incidents() {
   const [list, setList] = useState<Incident[]>([]);
@@ -31,6 +31,7 @@ export default function Incidents() {
               <th className="font-normal">Severity</th>
               <th className="font-normal">Risk</th>
               <th className="font-normal">Status</th>
+              <th className="font-normal">Outcome</th>
               <th className="font-normal">Remedy</th>
               <th className="font-normal">Created</th>
             </tr>
@@ -47,6 +48,11 @@ export default function Incidents() {
                 <td className="py-3"><SeverityTag s={i.severity} /></td>
                 <td className="py-3"><RiskBar value={i.risk} /></td>
                 <td className="py-3"><StatusPill s={i.status} /></td>
+                <td className="py-3">
+                  {outcomeOf(i) === "unverified"
+                    ? <span className="mono text-xs" style={{ color: "var(--muted)" }}>—</span>
+                    : <ConfusionTag outcome={outcomeOf(i)} />}
+                </td>
                 <td className="max-w-[260px] py-3 text-xs" style={{ color: "var(--muted)" }}>{i.ai.recommendation}</td>
                 <td className="mono py-3 text-xs" style={{ color: "var(--muted)" }}>{i.created}</td>
               </tr>

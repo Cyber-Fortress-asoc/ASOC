@@ -76,7 +76,7 @@ export default function Approvals() {
       )}
 
       {!loading && !error && pending.length === 0 && (
-        <Panel><Notice>No pending approvals. Sab incidents handle ho chuke hain.</Notice></Panel>
+        <Panel><Notice>No pending approvals. All incidents have been handled.</Notice></Panel>
       )}
 
       <div className="space-y-4">
