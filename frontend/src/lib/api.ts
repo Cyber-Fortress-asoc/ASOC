@@ -13,6 +13,22 @@ export type Stats = {
   timeline: { hour: string; alerts: number }[]; types: { type: string; count: number }[];
 };
 
+// An incident only gets a TP/FP label once a human has reviewed it:
+// Approve -> the AI's "this is an attack" call was confirmed  -> True Positive
+// Reject  -> the AI's "this is an attack" call was wrong      -> False Positive
+// Unresolved incidents have no label yet ("Unverified").
+export type Outcome = "TP" | "FP" | "unverified";
+export function outcomeOf(i: Incident): Outcome {
+  if (i.status === "approved") return "TP";
+  if (i.status === "rejected") return "FP";
+  return "unverified";
+}
+
+export type ConfusionStats = {
+  tp: number; fp: number; tn: number; fn: number;
+  precision: number | null; // TP / (TP + FP) — of the incidents we escalated, how many were real?
+};
+
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const WS = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8000/ws/alerts";
 const MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
@@ -99,6 +115,24 @@ function computeStats(): Stats {
   return { ...baseMockStats, timeline, open_incidents: open, critical_incidents: critical };
 }
 
+// TP and FP come straight from the incident list (approved / rejected).
+// TN and FN CANNOT be derived from the incident list — by definition, a true
+// negative never generated an alert, and a false negative also never
+// generated an alert (that's exactly what a miss is). Those two numbers only
+// exist if something else is tracking ground truth separately — e.g. in your
+// lab, you know you ran Hydra at 10:02, so if no alert appears, that's a
+// false negative you can observe from *outside* the system. In this mock,
+// tn/fn are fixed placeholders standing in for that external ground truth,
+// clearly separated from the real tp/fp numbers below.
+function computeConfusion(): ConfusionStats {
+  const tp = incidents.filter((i) => outcomeOf(i) === "TP").length;
+  const fp = incidents.filter((i) => outcomeOf(i) === "FP").length;
+  const tn = 182; // placeholder: normal traffic correctly left alone today
+  const fn = 1;   // placeholder: a known lab attack that detection missed
+  const precision = tp + fp > 0 ? tp / (tp + fp) : null;
+  return { tp, fp, tn, fn, precision };
+}
+
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const res = await fetch(`${BASE}${path}`, {
@@ -110,6 +144,8 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const getStats = async (): Promise<Stats> => (MOCK ? computeStats() : call("/api/stats/overview"));
+export const getConfusionStats = async (): Promise<ConfusionStats> =>
+  (MOCK ? computeConfusion() : call("/api/stats/confusion"));
 export const getIncidents = async (): Promise<Incident[]> => (MOCK ? incidents : call("/api/incidents"));
 export const getIncident = async (id: number): Promise<Incident | undefined> =>
   MOCK ? incidents.find((i) => i.id === id) : call(`/api/incidents/${id}`);
