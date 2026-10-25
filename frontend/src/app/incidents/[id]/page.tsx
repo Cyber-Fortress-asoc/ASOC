@@ -110,7 +110,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Incident, decide, getIncident, outcomeOf } from "@/lib/api";
-import { ConfusionTag, Notice, Panel, RiskBar, SeverityTag, Skeleton, StatusPill } from "@/components/ui";
+import { ConfusionTag, Notice, Panel, PredictionTag, RiskBar, SeverityTag, Skeleton, StatusPill } from "@/components/ui";
 
 // "T1059.001 PowerShell" -> { id: "T1059.001", name: "PowerShell", url }
 function parseMitre(raw: string) {
@@ -183,6 +183,7 @@ export default function IncidentDetail() {
           <h1 className="text-xl font-semibold">Incident #{inc.id}</h1>
           <SeverityTag s={inc.severity} />
           <RiskBar value={inc.risk} />
+          <PredictionTag prediction={inc.prediction} />
           <StatusPill s={inc.status} />
           {outcomeOf(inc) !== "unverified" && <ConfusionTag outcome={outcomeOf(inc)} />}
         </div>

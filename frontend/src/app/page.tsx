@@ -277,7 +277,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Area, AreaChart, Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Alert, ConfusionStats, Severity, Stats, getConfusionStats, getStats, subscribeAlerts } from "@/lib/api";
-import { Notice, Panel, SeverityTag, Skeleton, StatCard } from "@/components/ui";
+import { Notice, Panel, PredictionTag, SeverityTag, Skeleton, StatCard } from "@/components/ui";
 
 const FEED_MAX = 50;   // feed me max itni alerts
 const FLUSH_MS = 1000; // alerts ko 1 sec ke batch me apply karo
@@ -313,6 +313,7 @@ const AlertRow = memo(function AlertRow({ a }: { a: Alert }) {
       >
         <SeverityTag s={a.severity} />
         <span className="flex-1">{a.type}</span>
+        <PredictionTag prediction={a.prediction} />
         <span className="mono" style={{ color: "var(--muted)" }}>{a.source_ip}</span>
         <span className="mono text-xs" style={{ color: "var(--muted)" }}>
           {new Date(a.timestamp).toLocaleTimeString()}
@@ -489,6 +490,12 @@ export default function Dashboard() {
       )}
 
       <Panel title="Live alert feed">
+        {feed.length > 0 && (
+          <p className="mono mb-3 text-xs" style={{ color: "var(--muted)" }}>
+            ML pre-filter: {feed.filter((a) => a.prediction.label === "FP").length} auto-dismissed ·{" "}
+            {feed.filter((a) => a.prediction.label === "TP").length} escalated for review
+          </p>
+        )}
         <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
           {FILTERS.map((f) => (
             <button

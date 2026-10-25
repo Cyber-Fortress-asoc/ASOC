@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Incident, getIncidents, outcomeOf } from "@/lib/api";
-import { ConfusionTag, Panel, RiskBar, SeverityTag, StatusPill } from "@/components/ui";
+import { ConfusionTag, Panel, PredictionTag, RiskBar, SeverityTag, StatusPill } from "@/components/ui";
 
 export default function Incidents() {
   const [list, setList] = useState<Incident[]>([]);
@@ -30,6 +30,7 @@ export default function Incidents() {
               <th className="font-normal">Title</th>
               <th className="font-normal">Severity</th>
               <th className="font-normal">Risk</th>
+              <th className="font-normal">ML prediction</th>
               <th className="font-normal">Status</th>
               <th className="font-normal">Outcome</th>
               <th className="font-normal">Remedy</th>
@@ -47,6 +48,7 @@ export default function Incidents() {
                 </td>
                 <td className="py-3"><SeverityTag s={i.severity} /></td>
                 <td className="py-3"><RiskBar value={i.risk} /></td>
+                <td className="py-3"><PredictionTag prediction={i.prediction} /></td>
                 <td className="py-3"><StatusPill s={i.status} /></td>
                 <td className="py-3">
                   {outcomeOf(i) === "unverified"

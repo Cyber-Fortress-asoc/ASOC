@@ -1,5 +1,16 @@
 export type Severity = "critical" | "high" | "medium" | "low";
-export type Alert = { id: string; type: string; severity: Severity; source_ip: string; timestamp: string; incident_id: number };
+
+// Phase 1: the ML classifier's own automatic call, made the moment an alert
+// or incident is created -- BEFORE any human looks at it. "label" is what
+// the model predicts; "confidence" is how sure it is. This is a GUESS, not
+// the final answer -- see Outcome below for the human-confirmed version.
+export type MLLabel = "TP" | "FP";
+export type MLPrediction = { label: MLLabel; confidence: number };
+
+export type Alert = {
+  id: string; type: string; severity: Severity; source_ip: string; timestamp: string; incident_id: number;
+  prediction: MLPrediction;
+};
 export type Incident = {
   id: number; title: string; severity: Severity;
   status: "open" | "awaiting_approval" | "approved" | "rejected";
@@ -7,6 +18,7 @@ export type Incident = {
   intel: { ip: string; verdict: string; reports: number }[];
   timeline: { time: string; event: string }[];
   ai: { summary: string; evidence: string[]; recommendation: string };
+  prediction: MLPrediction;
 };
 export type Stats = {
   alerts_today: number; open_incidents: number; critical_incidents: number; mttr_min: number;
@@ -50,6 +62,7 @@ const incidents: Incident[] = [
       evidence: ["auth.log: 214 failures between 10:05-10:08", "auth.log: Accepted password for admin at 10:09", "OTX: 203.0.113.9 seen in 40 campaigns"],
       recommendation: "Block IP 203.0.113.9 at the firewall and disable the 'admin' account.",
     },
+    prediction: { label: "TP", confidence: 0.96 },
   },
   {
     id: 43, title: "Suspicious encoded PowerShell on workstation", severity: "high",
@@ -57,6 +70,7 @@ const incidents: Incident[] = [
     mitre: ["T1059.001 PowerShell"], intel: [{ ip: "198.51.100.23", verdict: "Suspicious", reports: 6 }],
     timeline: [{ time: "09:41", event: "powershell.exe -enc ... launched by winword.exe" }],
     ai: { summary: "Word spawned an encoded PowerShell command, a common phishing-payload pattern.", evidence: ["Sysmon event 1 at 09:41"], recommendation: "Isolate win-ws-07 and reset user credentials." },
+    prediction: { label: "TP", confidence: 0.83 },
   },
   {
     id: 44, title: "Port scan from internal host", severity: "medium",
@@ -64,6 +78,11 @@ const incidents: Incident[] = [
     mitre: ["T1046 Network Service Discovery"], intel: [],
     timeline: [{ time: "08:20", event: "100 ports probed in 9 seconds" }],
     ai: { summary: "Likely a vulnerability scanner or a misbehaving device.", evidence: ["Firewall log: 100 SYN packets"], recommendation: "Verify with IT whether this is an approved scan." },
+    // Example of the classifier doing its job: it caught the pattern, but
+    // flagged it low-confidence TP / leaning FP, since internal scanners
+    // commonly produce this exact signature. Phase 1 would auto-dismiss
+    // this one instead of sending it to a human, cutting review workload.
+    prediction: { label: "FP", confidence: 0.68 },
   },
 ];
 
@@ -161,11 +180,17 @@ export function subscribeAlerts(onAlert: (a: Alert) => void): () => void {
     const types = ["SSH Brute Force", "Port Scan", "Suspicious PowerShell", "Malware Signature"];
     const sev: Severity[] = ["low", "medium", "high", "critical"];
     const t = setInterval(() => {
+      // Phase 1 classifier: every alert gets an automatic TP/FP guess the
+      // instant it's created, with a confidence score -- no human involved
+      // at this point. Skewed toward TP so the demo still looks "attacky".
+      const label: MLLabel = Math.random() < 0.7 ? "TP" : "FP";
+      const confidence = label === "TP" ? 0.75 + Math.random() * 0.24 : 0.55 + Math.random() * 0.35;
       onAlert({
         id: crypto.randomUUID().slice(0, 6), type: types[Math.floor(Math.random() * 4)],
         severity: sev[Math.floor(Math.random() * 4)],
         source_ip: `203.0.113.${Math.floor(Math.random() * 254)}`,
         timestamp: new Date().toISOString(), incident_id: [42, 43, 44][Math.floor(Math.random() * 3)],
+        prediction: { label, confidence: Number(confidence.toFixed(2)) },
       });
     }, 4000);
     return () => clearInterval(t);
@@ -215,6 +240,15 @@ export async function askAnalyst(question: string): Promise<AnalystReply> {
   }
 
   const open = incidents.filter((i) => i.status !== "approved" && i.status !== "rejected");
+  if (has(q, ["model flag", "ml flag", "false positive", "classifier", "auto-dismiss", "auto dismiss"])) {
+    const fps = incidents.filter((i) => i.prediction.label === "FP");
+    return {
+      answer: fps.length
+        ? `The classifier predicted ${fps.length} incident(s) as False Positive before any human review.`
+        : "The classifier hasn't predicted any incident as False Positive right now.",
+      evidence: fps.map((i) => `#${i.id} [${i.severity}] ${i.title} — ML: FP ${Math.round(i.prediction.confidence * 100)}%`),
+    };
+  }
   if (has(q, ["open", "pending", "awaiting", "approval"])) {
     return {
       answer: `There are ${open.length} open incident(s).`,

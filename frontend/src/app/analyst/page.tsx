@@ -18,6 +18,7 @@ const SUGGESTIONS = [
   "What is the recommended action for #42?",
   "Show the MITRE techniques for #43",
   "Which incidents are awaiting approval?",
+  "Which incidents did the model flag as false positive?",
 ];
 
 const GREETING: Msg = {
