@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Incident, decide, getIncidents } from "@/lib/api";
-import { Notice, Panel, RiskBar, SeverityTag, Skeleton, StatusPill } from "@/components/ui";
+import { Notice, Panel, PredictionTag, RiskBar, SeverityTag, Skeleton, StatusPill } from "@/components/ui";
 
 type Decision = "approve" | "reject";
 
@@ -76,7 +76,7 @@ export default function Approvals() {
       )}
 
       {!loading && !error && pending.length === 0 && (
-        <Panel><Notice>No pending approvals. Sab incidents handle ho chuke hain.</Notice></Panel>
+        <Panel><Notice>No pending approvals. All incidents have been handled.</Notice></Panel>
       )}
 
       <div className="space-y-4">
@@ -96,6 +96,7 @@ export default function Approvals() {
                 </Link>
                 <SeverityTag s={inc.severity} />
                 <RiskBar value={inc.risk} />
+                <PredictionTag prediction={inc.prediction} />
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
@@ -185,6 +186,7 @@ export default function Approvals() {
                 </Link>
                 <span className="flex-1">{inc.title}</span>
                 <SeverityTag s={inc.severity} />
+                <PredictionTag prediction={inc.prediction} />
                 <StatusPill s={inc.status} />
               </li>
             ))}

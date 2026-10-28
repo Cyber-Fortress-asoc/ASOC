@@ -107,6 +107,38 @@ export function StatusPill({ s }: { s: string }) {
   );
 }
 
+const outcomeStyle: Record<string, { color: string; label: string }> = {
+  TP: { color: "var(--accent)", label: "True Positive" },
+  FP: { color: "var(--critical)", label: "False Positive" },
+  unverified: { color: "var(--muted)", label: "Unverified" },
+};
+
+// The ML model's own automatic guess (Phase 1), shown BEFORE any human has
+// reviewed anything. Deliberately styled with a dashed border -- distinct
+// from ConfusionTag's solid border below, which only appears once a human
+// has actually confirmed the outcome. Dashed = prediction, solid = confirmed.
+export function PredictionTag({ prediction }: { prediction: { label: "TP" | "FP"; confidence: number } }) {
+  const color = prediction.label === "TP" ? "var(--high)" : "var(--low)";
+  return (
+    <span className="mono inline-flex items-center gap-1 whitespace-nowrap border border-dashed px-2 py-0.5 text-xs"
+      style={{ borderColor: color, color }}
+      title="Automatic ML classification, made before human review">
+      ML: {prediction.label} {Math.round(prediction.confidence * 100)}%
+    </span>
+  );
+}
+
+export function ConfusionTag({ outcome }: { outcome: "TP" | "FP" | "unverified" }) {
+  if (outcome === "unverified") return null; // nothing to show until a human has decided
+  const { color, label } = outcomeStyle[outcome];
+  return (
+    <span className="mono inline-block whitespace-nowrap border px-2 py-0.5 text-xs" style={{ borderColor: color, color }}
+      title={outcome === "TP" ? "Approved: the AI's call was confirmed correct" : "Rejected: the AI's call was a false alarm"}>
+      {outcome} · {label}
+    </span>
+  );
+}
+
 export function RiskBar({ value }: { value: number }) {
   const color = value >= 80 ? "var(--critical)" : value >= 55 ? "var(--high)" : value >= 30 ? "var(--medium)" : "var(--low)";
   return (

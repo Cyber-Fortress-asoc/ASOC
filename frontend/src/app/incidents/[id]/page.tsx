@@ -109,8 +109,8 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Incident, decide, getIncident } from "@/lib/api";
-import { Notice, Panel, RiskBar, SeverityTag, Skeleton, StatusPill } from "@/components/ui";
+import { Incident, decide, getIncident, outcomeOf } from "@/lib/api";
+import { ConfusionTag, Notice, Panel, PredictionTag, RiskBar, SeverityTag, Skeleton, StatusPill } from "@/components/ui";
 
 // "T1059.001 PowerShell" -> { id: "T1059.001", name: "PowerShell", url }
 function parseMitre(raw: string) {
@@ -183,7 +183,9 @@ export default function IncidentDetail() {
           <h1 className="text-xl font-semibold">Incident #{inc.id}</h1>
           <SeverityTag s={inc.severity} />
           <RiskBar value={inc.risk} />
+          <PredictionTag prediction={inc.prediction} />
           <StatusPill s={inc.status} />
+          {outcomeOf(inc) !== "unverified" && <ConfusionTag outcome={outcomeOf(inc)} />}
         </div>
         <p className="mt-1" style={{ color: "var(--muted)" }}>{inc.title}</p>
         <p className="mono mt-1 text-xs" style={{ color: "var(--muted)" }}>Created {inc.created}</p>
@@ -268,7 +270,11 @@ export default function IncidentDetail() {
                     Reject
                   </button>
                 </div>
-              ) : (
+              ) : null}
+              <p className="mono mt-2 text-[11px]" style={{ color: "var(--muted)" }}>
+                Approve confirms the AI was right (True Positive). Reject marks it a false alarm (False Positive).
+              </p>
+              {confirming !== null && (
                 <div className="space-y-3 border p-3" style={{ borderColor: confirming === "approve" ? "var(--accent)" : "var(--critical)" }}>
                   <p className="text-sm">
                     {confirming === "approve"

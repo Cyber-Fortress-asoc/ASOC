@@ -276,8 +276,8 @@
 import { memo, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Area, AreaChart, Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Alert, Severity, Stats, getStats, subscribeAlerts } from "@/lib/api";
-import { Notice, Panel, SeverityTag, Skeleton, StatCard } from "@/components/ui";
+import { Alert, ConfusionStats, Severity, Stats, getConfusionStats, getStats, subscribeAlerts } from "@/lib/api";
+import { Notice, Panel, PredictionTag, SeverityTag, Skeleton, StatCard } from "@/components/ui";
 
 const FEED_MAX = 50;   // feed me max itni alerts
 const FLUSH_MS = 1000; // alerts ko 1 sec ke batch me apply karo
@@ -313,6 +313,7 @@ const AlertRow = memo(function AlertRow({ a }: { a: Alert }) {
       >
         <SeverityTag s={a.severity} />
         <span className="flex-1">{a.type}</span>
+        <PredictionTag prediction={a.prediction} />
         <span className="mono" style={{ color: "var(--muted)" }}>{a.source_ip}</span>
         <span className="mono text-xs" style={{ color: "var(--muted)" }}>
           {new Date(a.timestamp).toLocaleTimeString()}
@@ -324,6 +325,7 @@ const AlertRow = memo(function AlertRow({ a }: { a: Alert }) {
 
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [confusion, setConfusion] = useState<ConfusionStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [feed, setFeed] = useState<Alert[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
@@ -342,6 +344,7 @@ export default function Dashboard() {
         setUpdated(new Date().toLocaleTimeString());
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load stats"));
+    getConfusionStats().then(setConfusion);
   }, []);
 
   useEffect(() => {
@@ -449,7 +452,50 @@ export default function Dashboard() {
         </Panel>
       </div>
 
+      {confusion && (
+        <Panel title="Detection accuracy">
+          <p className="mb-4 max-w-2xl text-xs" style={{ color: "var(--muted)" }}>
+            Measured against what actually happened. True/False Positives come from your Approve/Reject
+            decisions below; True/False Negatives can&apos;t be seen from alerts alone, since a miss never
+            raises one — those two are tracked separately against known lab activity.
+          </p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="border p-3" style={{ borderColor: "var(--border)" }}>
+              <p className="text-xs" style={{ color: "var(--muted)" }}>True Positives</p>
+              <p className="mono mt-1 text-2xl font-semibold" style={{ color: "var(--accent)" }}>{confusion.tp}</p>
+              <p className="text-[11px]" style={{ color: "var(--muted)" }}>Alerts you approved — real attacks</p>
+            </div>
+            <div className="border p-3" style={{ borderColor: "var(--border)" }}>
+              <p className="text-xs" style={{ color: "var(--muted)" }}>False Positives</p>
+              <p className="mono mt-1 text-2xl font-semibold" style={{ color: "var(--critical)" }}>{confusion.fp}</p>
+              <p className="text-[11px]" style={{ color: "var(--muted)" }}>Alerts you rejected — false alarms</p>
+            </div>
+            <div className="border p-3" style={{ borderColor: "var(--border)" }}>
+              <p className="text-xs" style={{ color: "var(--muted)" }}>True Negatives</p>
+              <p className="mono mt-1 text-2xl font-semibold" style={{ color: "var(--low)" }}>{confusion.tn}</p>
+              <p className="text-[11px]" style={{ color: "var(--muted)" }}>Normal activity, correctly ignored</p>
+            </div>
+            <div className="border p-3" style={{ borderColor: "var(--border)" }}>
+              <p className="text-xs" style={{ color: "var(--muted)" }}>False Negatives</p>
+              <p className="mono mt-1 text-2xl font-semibold" style={{ color: "var(--high)" }}>{confusion.fn}</p>
+              <p className="text-[11px]" style={{ color: "var(--muted)" }}>Real attacks that slipped through</p>
+            </div>
+          </div>
+          {confusion.precision !== null && (
+            <p className="mono mt-4 text-xs" style={{ color: "var(--muted)" }}>
+              Precision: {(confusion.precision * 100).toFixed(0)}% of escalated incidents were confirmed real
+            </p>
+          )}
+        </Panel>
+      )}
+
       <Panel title="Live alert feed">
+        {feed.length > 0 && (
+          <p className="mono mb-3 text-xs" style={{ color: "var(--muted)" }}>
+            ML pre-filter: {feed.filter((a) => a.prediction.label === "FP").length} auto-dismissed ·{" "}
+            {feed.filter((a) => a.prediction.label === "TP").length} escalated for review
+          </p>
+        )}
         <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
           {FILTERS.map((f) => (
             <button
